@@ -18,15 +18,9 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# --- Клавиатура с тремя кнопками ---
+# --- Клавиатура с двумя кнопками ---
 inline_kb = InlineKeyboardMarkup(
     inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text="🔗 Курсро Тамошо кардан",
-                url="https://www.youtube.com/watch?v=kTdFLbqT-2Y"
-            )
-        ],
         [
             InlineKeyboardButton(
                 text="📞 Раками Телефон",
@@ -50,8 +44,13 @@ async def cmd_start(message: types.Message):
 
     caption_text = (
         f"👋 Салом {user_name} !\n\n"
-        "5 қадами асосӣ барои ба даст овардани даромад дар Инстаграм.\n\n"
-        "📘 Малумот дар бораи курси Маркетинг, Смм ва Бренди"
+        "📚 Ба шумо дарси «5 қадам барои даромад дар Инстаграм» пешкаш карда мешавад!\n\n"
+        "🎯 Дар ин дарс муҳокима мешавад:\n"
+        "- Чӣ тавр стратегия тартиб додан?\n"
+        "- Дар бозор чӣ хатоҳо вуҷуд дорад?\n"
+        "- Ба чӣ чизҳо таваҷҷӯҳ кардан лозим?\n\n"
+        "📘 Маълумот дар бораи курси Маркетинг, СММ ва Бренд\n\n"
+        "🎥 https://www.youtube.com/watch?v=kTdFLbqT-2Y"
     )
 
     await message.answer_photo(
@@ -66,7 +65,7 @@ async def cmd_start(message: types.Message):
 async def show_phone(callback: types.CallbackQuery):
     await callback.answer()
     await callback.message.answer(
-        "📞 <b>Наш телефон:</b> +992200504437",
+        "📞 <b>Раками телефон:</b> +992200504437",
         parse_mode="HTML"
     )
 
