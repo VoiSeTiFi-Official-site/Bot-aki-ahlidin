@@ -18,54 +18,35 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# --- Клавиатуры ---
-
-# Inline-кнопка "Старт" (вызывает callback)
-start_inline_kb = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [InlineKeyboardButton(text="🚀 Старт", callback_data="start_action")]
-    ]
-)
-
-# Клавиатура с ссылкой (можно добавить после отправки фото)
+# --- Клавиатура с ссылкой (обновлена) ---
 link_button = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="🔗 Перейти по ссылке", url="https://youtu.be/19KAG5S5RWg")]
+        [InlineKeyboardButton(
+            text="🔗 Перейти по ссылке",
+            url="https://www.youtube.com/watch?v=kTdFLbqT-2Y"
+        )]
     ]
 )
 
 # --- Обработчики ---
 
-# Команда /start
+# Команда /start — сразу отправляем фото с текстом и кнопкой
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    await message.answer(
-        "Привет! 👋\nНажми кнопку «Старт», чтобы получить материал:",
-        reply_markup=start_inline_kb
-    )
+    photo = FSInputFile("photo.jpg")  # фото должно лежать в папке с ботом
 
-# Обработчик нажатия на inline-кнопку "Старт"
-@dp.callback_query(lambda c: c.data == "start_action")
-async def process_start_callback(callback: types.CallbackQuery):
-    # Отвечаем на callback, чтобы убрать "часики"
-    await callback.answer()
-
-    # Подготавливаем фото (замени "photo.jpg" на свой файл)
-    photo = FSInputFile("photo.jpg")
-
-    # Текст сообщения
     caption_text = (
-        "🔥 *Вот твой бонус!*\n\n"
-        "📘 *2025-йил Запусклардаги ўсиш нуқталари*\n\n"
-        "Стратегия, хатолар ва эътибор бериш керак бўлган жиҳатлар.\n\n"
-        "👇 Видео дарсни кўриш учун тугмани босинг:"
+        "5 қадами асосӣ барои ба даст овардани даромад дар Инстаграм.\n\n"
+        "Малумот дар бораи курси Маркетинг, Смм ва Бренди\n"
+        "Шахси\n"
+        "Ватсап\n"
+        "wa.me/992200504437\n\n"
+        "📞 +992200504437"
     )
 
-    # Отправляем фото с текстом и кнопкой-ссылкой
-    await callback.message.answer_photo(
+    await message.answer_photo(
         photo=photo,
         caption=caption_text,
-        parse_mode="Markdown",
         reply_markup=link_button
     )
 
