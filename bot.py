@@ -45,40 +45,41 @@ inline_kb = InlineKeyboardMarkup(
 # --- Обработчик команды /start ---
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    # Подготавливаем фото
     photo = FSInputFile("photo.jpg")
 
-    # Текст с иконками
+    # Текст с HTML-разметкой (без Markdown, чтобы избежать ошибок)
     caption_text = (
-        "🔥 *ЭРДАМ* 🔥\n\n"
+        "<b>🔥 ЭРДАМ 🔥</b>\n\n"
         "5 қадами асосӣ барои ба даст овардани даромад дар Инстаграм.\n\n"
         "📘 Малумот дар бораи курси Маркетинг, Смм ва Бренди\n"
         "👤 Шахси Ватсап: wa.me/992200504437\n"
         "📞 Телефон: +992200504437\n\n"
-        "🛠 *Техподдержка:* @Mustafo_IT\n"
-        "❓ *Саволҳо оид ба курс:* @Jannat_Abdullaeva_Admin\n\n"
+        "🛠 <b>Техподдержка:</b> @Mustafo_IT\n"
+        "❓ <b>Саволҳо оид ба курс:</b> @Jannat_Abdullaeva_Admin\n\n"
         "Хамеша дар хидмати шумо ҳастем! 🎉"
     )
 
     await message.answer_photo(
         photo=photo,
         caption=caption_text,
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=inline_kb
     )
 
 # --- Обработчик callback для кнопки "📞 Раками Телефон" ---
 @dp.callback_query(lambda c: c.data == "show_phone")
 async def show_phone(callback: types.CallbackQuery):
-    await callback.answer()  # убираем "часики"
+    await callback.answer()
     await callback.message.answer(
-        "📞 *Наш телефон:* +992200504437\n"
-        "💬 *WhatsApp:* [написать](https://wa.me/992200504437)",
-        parse_mode="Markdown"
+        "📞 <b>Наш телефон:</b> +992200504437\n"
+        "💬 <b>WhatsApp:</b> <a href='https://wa.me/992200504437'>написать</a>",
+        parse_mode="HTML"
     )
 
 # --- Запуск ---
 async def main():
+    # Удаляем старые вебхуки, если были (избегаем конфликта)
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
