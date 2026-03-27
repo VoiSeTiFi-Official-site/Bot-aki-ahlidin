@@ -16,14 +16,23 @@ from dotenv import load_dotenv
 # ---------- Загрузка переменных окружения ----------
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "").split(','))) if os.getenv("ADMIN_IDS") else []
-if not ADMIN_IDS:
-    # Для обратной совместимости: если нет ADMIN_IDS, пробуем ADMIN_ID
+
+# Поддержка нескольких администраторов
+ADMIN_IDS = []
+admin_ids_str = os.getenv("ADMIN_IDS")
+if admin_ids_str:
+    ADMIN_IDS = [int(x.strip()) for x in admin_ids_str.split(',') if x.strip()]
+else:
     admin_id = os.getenv("ADMIN_ID")
     if admin_id:
-        ADMIN_IDS = [int(admin_id)]
-    else:
-        ADMIN_IDS = []
+        if ',' in admin_id:
+            ADMIN_IDS = [int(x.strip()) for x in admin_id.split(',') if x.strip()]
+        else:
+            ADMIN_IDS = [int(admin_id)]
+
+# Если всё же не задано, оставляем пустой список
+if not ADMIN_IDS:
+    logging.warning("Не задан ни ADMIN_ID, ни ADMIN_IDS. Админ-панель будет недоступна.")
 
 # ---------- Логирование ----------
 logging.basicConfig(level=logging.INFO)
