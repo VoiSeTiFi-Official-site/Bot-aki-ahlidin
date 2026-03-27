@@ -92,16 +92,36 @@ confirm_kb = InlineKeyboardMarkup(
 # --- Старт бота ---
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    add_user(message.from_user.id)
+    add_user(message.from_user.id)   # запоминаем пользователя
+
     photo = FSInputFile("photo.jpg")
-    caption = f"👋 Салом {message.from_user.first_name}!\n\n..."  # (ваш текст)
-    await message.answer_photo(photo, caption=caption, parse_mode="HTML", reply_markup=main_kb)
+    user_name = message.from_user.first_name
 
-@dp.callback_query(lambda c: c.data == "show_phone")
-async def show_phone(callback: types.CallbackQuery):
-    await callback.answer()
-    await callback.message.answer("📞 <b>Раками телефон:</b> +992200504437", parse_mode="HTML")
+    caption_text = (
+        f"👋 Салом {user_name}!\n\n"
+        "📚 Ба шумо дарси «5 қадам барои даромад дар Инстаграм» пешкаш карда мешавад!\n\n"
+        "🎯 Дар ин дарс шумо чиро меомузед:\n"
+        "- Чӣ тавр стратегия тартиб додан?\n"
+        "- Дар бозор чӣ хатоҳо вуҷуд дорад?\n"
+        "- Ба чӣ чизҳо таваҷҷӯҳ кардан лозим?\n\n"
+        "📘 Маълумот дар бораи курси Маркетинг, СММ ва Бренд\n\n"
+        "🎥 https://www.youtube.com/watch?v=kTdFLbqT-2Y\n\n"
+        "📞 Раками телефон: +992200504437"
+    )
 
+    # Клавиатура только с Ватсап
+    whatsapp_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🗨️ Ватсап", url="https://wa.me/992200504437")]
+        ]
+    )
+
+    await message.answer_photo(
+        photo=photo,
+        caption=caption_text,
+        parse_mode="HTML",
+        reply_markup=whatsapp_kb
+    )
 # --- Админ-панель ---
 @dp.message(Command("admin"))
 async def admin_panel(message: types.Message):
