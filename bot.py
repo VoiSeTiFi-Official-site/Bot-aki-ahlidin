@@ -16,7 +16,14 @@ from dotenv import load_dotenv
 # ---------- Загрузка переменных окружения ----------
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "").split(','))) if os.getenv("ADMIN_IDS") else []
+if not ADMIN_IDS:
+    # Для обратной совместимости: если нет ADMIN_IDS, пробуем ADMIN_ID
+    admin_id = os.getenv("ADMIN_ID")
+    if admin_id:
+        ADMIN_IDS = [int(admin_id)]
+    else:
+        ADMIN_IDS = []
 
 # ---------- Логирование ----------
 logging.basicConfig(level=logging.INFO)
@@ -54,9 +61,7 @@ class BroadcastStates(StatesGroup):
     waiting_for_time = State()
     confirming = State()
 
-# ---------- КЛАВИАТУРЫ (двухрядные, красивые) ----------
-
-# Админ-панель (главная)
+# ---------- КЛАВИАТУРЫ ----------
 admin_main_kb = InlineKeyboardMarkup(
     inline_keyboard=[
         [
@@ -70,7 +75,6 @@ admin_main_kb = InlineKeyboardMarkup(
     ]
 )
 
-# Клавиатура выбора времени
 time_kb = InlineKeyboardMarkup(
     inline_keyboard=[
         [
@@ -87,7 +91,6 @@ time_kb = InlineKeyboardMarkup(
     ]
 )
 
-# Клавиатура подтверждения
 confirm_kb = InlineKeyboardMarkup(
     inline_keyboard=[
         [
@@ -105,7 +108,6 @@ confirm_kb = InlineKeyboardMarkup(
     ]
 )
 
-# Клавиатура отмены (используется на любом шаге)
 cancel_kb = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="❌ Отменить", callback_data="admin_cancel")]
@@ -113,7 +115,6 @@ cancel_kb = InlineKeyboardMarkup(
 )
 
 # ---------- КЛИЕНТСКАЯ ЧАСТЬ ----------
-# Клавиатура с одной кнопкой WhatsApp
 whatsapp_kb = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="🗨️ Ватсап", url="https://wa.me/992200504437")]
@@ -142,15 +143,17 @@ async def cmd_start(message: types.Message):
     await message.answer_photo(
         photo=photo,
         caption=caption_text,
-        parse_mode="HTML",          # здесь HTML нужен для форматирования текста
+        parse_mode="HTML",
         reply_markup=whatsapp_kb
     )
 
-# ---------- АДМИН-ПАНЕЛЬ ----------
+# ---------- АДМИН-ПАНЕЛЬ (с поддержкой нескольких админов) ----------
+def is_admin(user_id):
+    return user_id in ADMIN_IDS
 
 @dp.message(Command("admin"))
 async def admin_panel(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
+    if not is_admin(message.from_user.id):
         await message.answer("⛔ У вас нет доступа к админ-панели.")
         return
     await message.answer(
@@ -163,7 +166,7 @@ async def admin_panel(message: types.Message):
 
 @dp.callback_query(lambda c: c.data == "admin_stats")
 async def show_stats(callback: types.CallbackQuery):
-    if callback.from_user.id != ADMIN_ID:
+    if not is_admin(callback.from_user.id):
         await callback.answer("⛔ Нет доступа", show_alert=True)
         return
     await callback.answer()
@@ -178,7 +181,7 @@ async def show_stats(callback: types.CallbackQuery):
 
 @dp.callback_query(lambda c: c.data == "admin_users_list")
 async def show_users_list(callback: types.CallbackQuery):
-    if callback.from_user.id != ADMIN_ID:
+    if not is_admin(callback.from_user.id):
         await callback.answer("⛔ Нет доступа", show_alert=True)
         return
     await callback.answer()
@@ -204,7 +207,7 @@ async def show_users_list(callback: types.CallbackQuery):
 
 @dp.callback_query(lambda c: c.data == "admin_close")
 async def close_admin(callback: types.CallbackQuery, state: FSMContext):
-    if callback.from_user.id != ADMIN_ID:
+    if not is_admin(callback.from_user.id):
         await callback.answer("⛔ Нет доступа", show_alert=True)
         return
     await callback.answer()
@@ -213,7 +216,7 @@ async def close_admin(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query(lambda c: c.data == "admin_cancel")
 async def cancel_action(callback: types.CallbackQuery, state: FSMContext):
-    if callback.from_user.id != ADMIN_ID:
+    if not is_admin(callback.from_user.id):
         await callback.answer("⛔ Нет доступа", show_alert=True)
         return
     await callback.answer()
@@ -224,10 +227,9 @@ async def cancel_action(callback: types.CallbackQuery, state: FSMContext):
     )
 
 # ---------- СОЗДАНИЕ РАССЫЛКИ ----------
-
 @dp.callback_query(lambda c: c.data == "admin_new_broadcast")
 async def new_broadcast(callback: types.CallbackQuery, state: FSMContext):
-    if callback.from_user.id != ADMIN_ID:
+    if not is_admin(callback.from_user.id):
         await callback.answer("⛔ Нет доступа", show_alert=True)
         return
     await callback.answer()
@@ -278,9 +280,9 @@ async def process_photo(message: types.Message, state: FSMContext):
     await state.update_data(photo=photo)
     await state.set_state(BroadcastStates.waiting_for_video_link)
     await message.answer(
-        "🎥 <b>Шаг 3 из 4: Добавьте видео (ссылку)</b>\n\n"
+        "🎥 <b>Шаг 3 из 4: Добавьте ссылку на видео</b>\n\n"
         "Введите ссылку на видео (YouTube и т.п.).\n"
-        "Ссылка будет добавлена как кнопка под сообщением.\n"
+        "Ссылка будет добавлена в текст сообщения как обычная ссылка.\n"
         "Или отправьте <b>«пропустить»</b>, если ссылка не нужна.\n\n"
         "❌ Чтобы отменить, нажмите кнопку:",
         parse_mode="HTML",
@@ -293,10 +295,10 @@ async def process_video_link(message: types.Message, state: FSMContext):
 
     if message.text and message.text.strip().lower() == "пропустить":
         video_link = None
-        await message.answer("✅ Видео пропущено, кнопки не будет.")
+        await message.answer("✅ Видео пропущено, ссылки не будет.")
     elif message.text and (message.text.startswith("http://") or message.text.startswith("https://")):
         video_link = message.text.strip()
-        await message.answer("✅ Ссылка получена!")
+        await message.answer("✅ Ссылка получена! Она будет добавлена в текст.")
     else:
         await message.answer(
             "❌ Это не похоже на ссылку.\n"
@@ -319,6 +321,9 @@ async def process_video_link(message: types.Message, state: FSMContext):
 
 @dp.callback_query(lambda c: c.data.startswith("time_") and c.data != "time_custom")
 async def process_time_choice(callback: types.CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Нет доступа", show_alert=True)
+        return
     await callback.answer()
 
     data = callback.data
@@ -339,6 +344,9 @@ async def process_time_choice(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query(lambda c: c.data == "time_custom")
 async def custom_time_request(callback: types.CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Нет доступа", show_alert=True)
+        return
     await callback.answer()
     await state.set_state(BroadcastStates.waiting_for_time)
     await callback.message.answer(
@@ -380,18 +388,13 @@ async def process_custom_time(message: types.Message, state: FSMContext):
     await show_preview(message, state)
 
 def parse_time(user_input):
-    """Парсит время, возвращает секунды задержки или None"""
     now = datetime.now()
-
-    # +часы
     if user_input.startswith('+'):
         try:
             hours = float(user_input[1:])
             return int(hours * 3600)
         except:
             return None
-
-    # HH:MM
     if re.match(r'^\d{1,2}:\d{2}$', user_input):
         try:
             target_time = datetime.strptime(user_input, "%H:%M").time()
@@ -401,8 +404,6 @@ def parse_time(user_input):
             return (target - now).total_seconds()
         except:
             return None
-
-    # HH:MM DD.MM
     if re.match(r'^\d{1,2}:\d{2}\s+\d{1,2}\.\d{2}$', user_input):
         try:
             time_part, date_part = user_input.split()
@@ -415,10 +416,9 @@ def parse_time(user_input):
             return (target - now).total_seconds()
         except:
             return None
-
     return None
 
-# ---------- ПРЕДПРОСМОТР (без HTML, чтобы избежать ошибок) ----------
+# ---------- ПРЕДПРОСМОТР (без кнопки, ссылка в тексте) ----------
 async def show_preview(message: types.Message, state: FSMContext):
     data = await state.get_data()
     text = data.get("text", "")
@@ -427,16 +427,11 @@ async def show_preview(message: types.Message, state: FSMContext):
     delay = data.get("delay_seconds", 0)
     users_count = len(users)
 
-    # Клавиатура для предпросмотра (если есть видео)
-    preview_kb = None
+    # Если есть видео-ссылка, добавляем её в текст
     if video_link:
-        preview_kb = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="🎥 Смотреть видео", url=video_link)]
-            ]
-        )
+        text += f"\n\n🎥 Смотреть видео: {video_link}"
 
-    # Форматируем время без HTML
+    # Форматируем время
     if delay == 0:
         time_text = "🚀 Сейчас"
     else:
@@ -454,25 +449,25 @@ async def show_preview(message: types.Message, state: FSMContext):
         f"👥 Получателей: {users_count}\n"
         f"⏱️ Отправка: {time_text}\n"
         f"{'📸 Есть фото' if photo else '📸 Без фото'}\n"
-        f"{'🎥 Есть видео-кнопка' if video_link else '🎥 Без видео'}\n"
+        f"{'🎥 Есть видео-ссылка' if video_link else '🎥 Без видео'}\n"
         f"{'─' * 30}\n\n"
     )
 
     full_text = preview_header + text
 
-    # Отправляем без parse_mode, чтобы исключить ошибки HTML
+    # Отправляем предпросмотр без клавиатуры (видео в тексте)
     if photo:
         await message.answer_photo(
             photo=photo,
             caption=full_text,
             parse_mode=None,
-            reply_markup=preview_kb
+            reply_markup=None  # убираем клавиатуру
         )
     else:
         await message.answer(
             full_text,
             parse_mode=None,
-            reply_markup=preview_kb
+            reply_markup=None
         )
 
     await state.set_state(BroadcastStates.confirming)
@@ -485,7 +480,7 @@ async def show_preview(message: types.Message, state: FSMContext):
 # ---------- ПОДТВЕРЖДЕНИЕ ----------
 @dp.callback_query(lambda c: c.data.startswith("confirm_"))
 async def confirm_broadcast(callback: types.CallbackQuery, state: FSMContext):
-    if callback.from_user.id != ADMIN_ID:
+    if not is_admin(callback.from_user.id):
         await callback.answer("⛔ Нет доступа", show_alert=True)
         return
     await callback.answer()
@@ -561,20 +556,16 @@ async def confirm_broadcast(callback: types.CallbackQuery, state: FSMContext):
 
 # ---------- ФУНКЦИИ ОТПРАВКИ ----------
 async def send_broadcast(data: dict, status_msg: types.Message = None):
-    """Отправляет сообщение всем пользователям с обновлением статуса"""
     text = data.get("text", "")
     photo = data.get("photo")
     video_link = data.get("video_link")
+
+    # Добавляем видео-ссылку в текст, если есть
+    if video_link:
+        text += f"\n\n🎥 Смотреть видео: {video_link}"
+
     users_list = list(users)
     total = len(users_list)
-
-    reply_markup = None
-    if video_link:
-        reply_markup = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="🎥 Смотреть видео", url=video_link)]
-            ]
-        )
 
     success = 0
     fail = 0
@@ -583,9 +574,9 @@ async def send_broadcast(data: dict, status_msg: types.Message = None):
     for i, user_id in enumerate(users_list):
         try:
             if photo:
-                await bot.send_photo(user_id, photo=photo, caption=text, parse_mode="HTML", reply_markup=reply_markup)
+                await bot.send_photo(user_id, photo=photo, caption=text, parse_mode="HTML")
             else:
-                await bot.send_message(user_id, text, parse_mode="HTML", reply_markup=reply_markup)
+                await bot.send_message(user_id, text, parse_mode="HTML")
             success += 1
         except Exception as e:
             logging.error(f"Ошибка отправки {user_id}: {e}")
@@ -621,7 +612,6 @@ async def send_broadcast(data: dict, status_msg: types.Message = None):
         )
 
 async def schedule_broadcast(data, delay, admin_chat_id):
-    """Отложенная рассылка"""
     await asyncio.sleep(delay)
 
     await bot.send_message(
@@ -658,10 +648,8 @@ async def cancel_cmd(message: types.Message, state: FSMContext):
 
 # ---------- ЗАПУСК ----------
 async def main():
-    # Удаляем вебхук и ждём, чтобы он точно пропал
     await bot.delete_webhook(drop_pending_updates=True)
     await asyncio.sleep(0.5)
-    # Запускаем polling
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
