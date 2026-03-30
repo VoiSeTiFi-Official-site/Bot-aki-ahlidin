@@ -70,6 +70,9 @@ class BroadcastStates(StatesGroup):
     waiting_for_time = State()
     confirming = State()
 
+class VideoNoteStates(StatesGroup):
+    waiting_for_video_note = State()
+
 # ---------- КЛАВИАТУРЫ ----------
 admin_main_kb = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -78,7 +81,10 @@ admin_main_kb = InlineKeyboardMarkup(
             InlineKeyboardButton(text="📊 Статистика", callback_data="admin_stats")
         ],
         [
-            InlineKeyboardButton(text="📋 Список пользователей", callback_data="admin_users_list"),
+            InlineKeyboardButton(text="🎥 Круглое видео", callback_data="admin_video_note"),
+            InlineKeyboardButton(text="📋 Список пользователей", callback_data="admin_users_list")
+        ],
+        [
             InlineKeyboardButton(text="❌ Закрыть", callback_data="admin_close")
         ]
     ]
@@ -654,6 +660,90 @@ async def cancel_cmd(message: types.Message, state: FSMContext):
         return
     await state.clear()
     await message.answer("❌ Действие отменено.")
+
+# ---------- КРУГЛОЕ ВИДЕО РАССЫЛКА ----------
+@dp.callback_query(lambda c: c.data == "admin_video_note")
+async def admin_video_note(callback: types.CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Нет доступа", show_alert=True)
+        return
+    await callback.answer()
+    await state.set_state(VideoNoteStates.waiting_for_video_note)
+    await callback.message.answer(
+        "🎥 <b>Рассылка круглого видео</b>\n\n"
+        f"👥 Получателей: <b>{len(users)}</b>\n\n"
+        "Отправьте круглое видео (video note) для рассылки:\n\n"
+        "❌ Чтобы отменить:",
+        parse_mode="HTML",
+        reply_markup=cancel_kb
+    )
+
+@dp.message(VideoNoteStates.waiting_for_video_note)
+async def process_video_note_broadcast(message: types.Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+
+    if not message.video_note:
+        await message.answer(
+            "❌ Это не круглое видео!\n"
+            "Отправьте именно круглое видео (video note).\n\n"
+            "Или нажмите кнопку отмены:",
+            reply_markup=cancel_kb
+        )
+        return
+
+    video_note_id = message.video_note.file_id
+    users_list = list(users)
+    total = len(users_list)
+
+    status_msg = await message.answer(
+        f"🚀 <b>Начинаю рассылку круглого видео...</b>\n\n"
+        f"👥 Получателей: {total}\n\n"
+        f"<i>Пожалуйста, подождите...</i>",
+        parse_mode="HTML"
+    )
+
+    success = 0
+    fail = 0
+    last_update = 0
+
+    for i, user_id in enumerate(users_list):
+        try:
+            await bot.send_video_note(user_id, video_note=video_note_id)
+            success += 1
+        except Exception as e:
+            logging.error(f"Ошибка отправки video_note {user_id}: {e}")
+            fail += 1
+
+        await asyncio.sleep(0.05)
+
+        progress = int((i + 1) / total * 100)
+        if progress >= last_update + 10:
+            last_update = progress
+            try:
+                await status_msg.edit_text(
+                    f"🚀 <b>Идёт рассылка...</b>\n\n"
+                    f"📊 Прогресс: {progress}%\n"
+                    f"✅ Успешно: {success}\n"
+                    f"❌ Ошибок: {fail}\n"
+                    f"👥 Осталось: {total - (i + 1)}\n\n"
+                    f"<i>Пожалуйста, подождите...</i>",
+                    parse_mode="HTML"
+                )
+            except:
+                pass
+
+    await status_msg.edit_text(
+        f"✅ <b>Рассылка завершена!</b>\n\n"
+        f"📊 Итог:\n"
+        f"👥 Всего: {total}\n"
+        f"✅ Успешно: {success}\n"
+        f"❌ Ошибок: {fail}\n\n"
+        f"<i>Круглое видео получили {success} из {total} пользователей</i>",
+        parse_mode="HTML"
+    )
+
+    await state.clear()
 
 # ---------- ЗАПУСК ----------
 async def main():
